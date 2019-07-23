@@ -13,6 +13,10 @@ class Fetch:
         self.__token = None
         self.duplicate_count = 0
         self.serial_duplicate_count = 0
+        self.header = {
+            "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.119 Safari/537.36",
+            "Referer": "https://asiansister.com/"
+        }
 
     @retry(stop_max_attempt_number=3,
            stop_max_delay=1000,
@@ -20,9 +24,7 @@ class Fetch:
            wait_exponential_max=6000)
     def download_file(self, url, filename):
         try:
-            req = request.Request(url, headers={
-
-            })
+            req = request.Request(url, headers=self.header)
             data = request.urlopen(req).read()
             with open(filename, 'wb') as f:
                 f.write(data)
@@ -41,7 +43,11 @@ class Fetch:
     def download_large_file(self, url, filename):
         count = 0
         try:
-            with closing(requests.get(url, stream=True, timeout=(5, 20))) as res:
+            with closing(requests.get(url, headers=self.header, stream=True, timeout=(5, 20))) as res:
+                if 'content-length' not in res.headers:
+                    self.download_file(url, filename)
+                    return
+
                 chunk_size = 1024000  # 每次请求的块大小
                 content_size = int(res.headers['content-length'])  # 文件总大小
                 with open(filename, "wb") as file:

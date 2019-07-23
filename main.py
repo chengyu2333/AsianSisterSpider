@@ -5,8 +5,10 @@ from fetch import Fetch
 from tinydb import TinyDB, Query, where
 
 domain = "https://asiansister.com/"
-video_page = 15
-pic_page = 47
+video_page_start = 1
+video_page_to = 15
+pic_page_start = 1
+pic_page_to = 47
 
 Q = Query()
 db_url = TinyDB("db.json")
@@ -14,9 +16,11 @@ table_video_url = db_url.table("video")
 table_pic_url = db_url.table("pic")
 fetch = Fetch()
 
+print(len(table_video_url))
+
 
 def get_video_art_list():
-    for p in range(1, video_page):
+    for p in range(video_page_start, video_page_to):
         print("视频第%d页" % p)
         video_url = domain + "video.php?page=%d" % p
         res = requests.get(video_url).text
@@ -32,18 +36,20 @@ def get_video_art_list():
             item = {
                 "page_url": page_url,
                 "title": title,
-                "prev_url": prev_url
+                "prev_url": prev_url,
+                "flag": 0
             }
             if table_video_url.get(where('page_url') == page_url):
                 print("重复" + page_url)
             else:
                 print(item)
                 table_video_url.insert(item)
+    print("视频页列表抓取完毕")
 
 
 def get_pic_art_list():
     # pic_art_list = {"pic_url_list": []}
-    for p in range(1, pic_page):
+    for p in range(pic_page_start, pic_page_to):
         print("图片第%d页" % p)
         pic_url = domain + "_page%d" % p
         res = requests.get(pic_url).text
@@ -58,23 +64,35 @@ def get_pic_art_list():
             item = {
                 "page_url": page_url,
                 "title": title,
-                "prev_url": prev_url
+                "prev_url": prev_url,
+                "flag": 0
             }
             if table_pic_url.get(where('page_url') == page_url):
                 print("重复" + page_url)
             else:
                 print(item)
                 table_pic_url.insert(item)
+    print("图片页列表抓取完毕")
 
 
-def down_video():
-    pass
+def get_video_meta(page_url=None, prev_url=None):
+    if page_url is None:
+        item = table_video_url.get(where("flag") == 0)
+        if item is None:
+            return None
+        page_url = item['page_url']
+        prev_url = domain + item['prev_url']
+        print(item)
 
-
-def get_video_meta(page_url):
     res = requests.get(domain + page_url).text
     data = BeautifulSoup(res, "html5lib")
     video_url = data.select("source")[0].attrs['src']
+    try:
+        fetch.download_large_file(video_url, "video/" + page_url + ".mp4")
+        fetch.download_large_file(prev_url, "video/" + page_url + ".jpg")
+    except Exception as e:
+        print(str(e))
+    table_video_url.update({"flag": 1, "video_url": video_url}, where("page_url") == page_url)
     return video_url
 
 
@@ -101,8 +119,11 @@ def get_pic_meta(page_url=None):
             "prev_url": prev_url,
             "flag": 0
         })
-        fetch.download_large_file(domain + photo_url, "photo/" + page_url + "/" + photo_url.split("/")[-1])
-        fetch.download_large_file(domain + prev_url, "photo/" + page_url + "/" + prev_url.split("/")[-1])
+        try:
+            fetch.download_file(domain + photo_url, "photo/" + page_url + "/" + photo_url.split("/")[-1])
+            fetch.download_file(domain + prev_url, "photo/" + page_url + "/" + prev_url.split("/")[-1])
+        except Exception as e:
+            print(str(e))
 
     table_pic_url.update({"flag": 1, "img_pack": img_pack}, where("page_url") == page_url)
     return img_pack
@@ -111,13 +132,9 @@ def get_pic_meta(page_url=None):
 def batch_get_video():
     table_video_url.update({"flag": 0})
     while True:
-        item = table_video_url.get(where("flag") == 0)
-        if item is None:
+        if get_video_meta() is None:
             break
-        video_url = get_video_meta(item['page_url'])
-        fetch.download_large_file(video_url, "mp4/" + item['page_url'] + ".mp4")
-        fetch.download_large_file(item['prev_url'], "mp4/" + item['page_url'] + ".jpg")
-        table_video_url.update({"flag": 1, "video_url": video_url}, where("page_url") == item['page_url'])
+    print("视频下载完毕")
 
 
 def batch_get_pic():
@@ -125,13 +142,15 @@ def batch_get_pic():
     while True:
         if get_pic_meta() is None:
             break
+    print("图片下载完毕")
 
 
 # 获取视频列表
-get_video_art_list()
+# get_video_art_list()
 # 获取图包列表
-get_pic_art_list()
+# get_pic_art_list()
+# 批量获取图包信息并下载
+# batch_get_pic()
 # 批量获取视频信息
 # batch_get_video()
-# 批量获取图包信息并下载
-batch_get_pic()
+
