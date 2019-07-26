@@ -17,7 +17,11 @@ table_video_url = db_url.table("video")
 table_pic_url = db_url.table("pic")
 fetch = Fetch()
 
-print(len(table_video_url))
+if not os.path.exists("photo"):
+    os.mkdir("photo")
+
+if not os.path.exists("video"):
+    os.mkdir("video")
 
 
 def get_video_art_list():
@@ -102,6 +106,7 @@ def get_video_meta(page_url=None, prev_url=None):
         fetch.download_large_file(prev_url, "video/" + page_url + ".jpg")
     except Exception as e:
         log.log_error(str(e))
+        raise e
     table_video_url.update({"flag": 1, "video_url": video_url}, where("page_url") == page_url)
     return video_url
 
@@ -133,6 +138,7 @@ def get_pic_meta(page_url=None):
             fetch.download_file(domain + prev_url, "photo/" + page_url + "/" + prev_url.split("/")[-1])
         except Exception as e:
             log.log_error(str(e))
+            raise e
 
     table_pic_url.update({"flag": 1, "img_pack": img_pack}, where("page_url") == page_url)
     return img_pack
