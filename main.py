@@ -68,6 +68,8 @@ def get_pic_art_list():
         for b in box:
             page_url = b.select("a")[0].attrs['href']
             title = b.select(".titleName")[0].string
+            if title is None:
+                title = "no titile - " + page_url
             title = title.replace("\n", "")
             title = title.replace("\t", "")
             prev_url = b.select(".lazyload")[0].attrs['data-src']
@@ -80,8 +82,8 @@ def get_pic_art_list():
             if table_pic_url.get(where('page_url') == page_url):
                 log.log_info("重复" + page_url)
                 repeat_count += 1
-                if repeat_count > 10:
-                    log.log_success("重复次数达到上线，视频页列表抓取完毕")
+                if repeat_count > 100:
+                    log.log_success("重复次数达到上线，列表抓取完毕")
                     return
             else:
                 print(item)
@@ -126,6 +128,11 @@ def get_pic_meta(page_url=None):
     for img in imgs:
         if not os.path.exists("photo/" + page_url):
             os.mkdir("photo/" + page_url)
+        img = img.select(".showMiniImage img")
+        if len(img) == 1:
+            img = img[0]
+        else:
+            continue
         photo_url = img.attrs['dataurl'][5:]
         prev_url = img.attrs['data-src']
         img_pack.append({
