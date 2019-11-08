@@ -2,6 +2,7 @@
 from contextlib import closing
 
 import requests
+import urllib
 from urllib import request
 import log
 from retry import retry
@@ -9,7 +10,7 @@ from retry import retry
 
 class Fetch:
 
-    def __init__(self):
+    def __init__(self, proxy = None):
         self.__token = None
         self.duplicate_count = 0
         self.serial_duplicate_count = 0
@@ -17,6 +18,7 @@ class Fetch:
             "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.119 Safari/537.36",
             "Referer": "https://asiansister.com/"
         }
+        self.proxies = proxy
 
     @retry(stop_max_attempt_number=3,
            stop_max_delay=1000,
@@ -24,6 +26,13 @@ class Fetch:
            wait_exponential_max=6000)
     def download_file(self, url, filename):
         try:
+            # create the object, assign it to a variable
+            proxy = urllib.request.ProxyHandler(self.proxies)
+            # construct a new opener using your proxy settings
+            opener = urllib.request.build_opener(proxy)
+            # install the openen on the module-level
+            urllib.request.install_opener(opener)
+
             req = request.Request(url, headers=self.header)
             data = request.urlopen(req).read()
             with open(filename, 'wb') as f:
@@ -43,7 +52,7 @@ class Fetch:
     def download_large_file(self, url, filename):
         count = 0
         try:
-            with closing(requests.get(url, headers=self.header, stream=True, timeout=(5, 20))) as res:
+            with closing(requests.get(url, proxies=self.proxies, headers=self.header, stream=True, timeout=(5, 20))) as res:
                 if 'content-length' not in res.headers:
                     self.download_file(url, filename)
                     return

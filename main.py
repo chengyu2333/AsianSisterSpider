@@ -7,15 +7,21 @@ import log
 
 domain = "https://asiansister.com/"
 video_page_start = 1
-video_page_to = 15
+video_page_to = 999
 pic_page_start = 1
-pic_page_to = 47
+pic_page_to = 999
+
+proxies = {
+    'http': '127.0.0.1:10809',
+    'https': '127.0.0.1:10809'
+}
+# proxies = None
 
 Q = Query()
 db_url = TinyDB("db.json")
 table_video_url = db_url.table("video")
 table_pic_url = db_url.table("pic")
-fetch = Fetch()
+fetch = Fetch(proxy=proxies)
 
 if not os.path.exists("photo"):
     os.mkdir("photo")
@@ -29,7 +35,11 @@ def get_video_art_list():
     for p in range(video_page_start, video_page_to):
         log.log_info("视频第%d页" % p)
         video_url = domain + "video.php?page=%d" % p
-        res = requests.get(video_url).text
+        res = requests.get(video_url, proxies=proxies)
+        if res.status_code == 404:
+            log.log_success("404，视频页列表抓取完毕")
+            return
+        res = res.text
         data = BeautifulSoup(res, "html5lib")
         box = data.select(".itemBox_video")
         for b in box:
@@ -62,7 +72,11 @@ def get_pic_art_list():
     for p in range(pic_page_start, pic_page_to):
         log.log_info("图片第%d页" % p)
         pic_url = domain + "_page%d" % p
-        res = requests.get(pic_url).text
+        res = requests.get(pic_url, proxies=proxies)
+        if res.status_code == 404:
+            log.log_success("404，图片页列表抓取完毕")
+            return
+        res = res.text
         data = BeautifulSoup(res, "html5lib")
         box = data.select(".itemBox")
         for b in box:
@@ -100,7 +114,7 @@ def get_video_meta(page_url=None, prev_url=None):
         prev_url = domain + item['prev_url']
         print(item)
 
-    res = requests.get(domain + page_url).text
+    res = requests.get(domain + page_url, proxies=proxies).text
     data = BeautifulSoup(res, "html5lib")
     video_url = data.select("source")[0].attrs['src']
     try:
@@ -121,20 +135,25 @@ def get_pic_meta(page_url=None):
         page_url = item['page_url']
         print(item)
 
-    res = requests.get(domain + page_url).text
+    res = requests.get(domain + page_url, proxies=proxies).text
     data = BeautifulSoup(res, "html5lib")
     imgs = data.select(".showMiniImage")
     img_pack = []  # 图包
     for img in imgs:
+        print(img)
         if not os.path.exists("photo/" + page_url):
             os.mkdir("photo/" + page_url)
-        img = img.select(".showMiniImage img")
-        if len(img) == 1:
-            img = img[0]
+        if 'data-src' in img.attrs:
+            pass
         else:
-            continue
-        photo_url = img.attrs['dataurl'][5:]
+            img = img.select(".showMiniImage img")
+            if len(img) == 1:
+                img = img[0]
+            else:
+                # print(img)
+                continue
         prev_url = img.attrs['data-src']
+        photo_url = prev_url.replace("_t.", ".")
         img_pack.append({
             "photo_url": photo_url,
             "prev_url": prev_url,
@@ -155,6 +174,7 @@ def batch_get_video():
     # table_video_url.update({"flag": 0})
     while True:
         if get_video_meta() is None:
+            print("finished")
             break
 
 
@@ -162,6 +182,7 @@ def batch_get_pic():
     # table_pic_url.update({"flag": 0})
     while True:
         if get_pic_meta() is None:
+            print("finished")
             break
 
 
@@ -173,4 +194,3 @@ get_pic_art_list()
 batch_get_pic()
 # 批量获取视频信息
 batch_get_video()
-

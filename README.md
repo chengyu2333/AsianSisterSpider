@@ -9,6 +9,8 @@ tinydb
 bs4
 six
 html5lib
+pysocks
 
 ### 食用方法
-直接执行python3 main.py即可
+编辑main.py配置proxies代理，如果不需要代理则proxies=None
+执行python3 main.py即可
