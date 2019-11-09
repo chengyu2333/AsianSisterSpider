@@ -15,7 +15,7 @@ proxies = {
     'http': '127.0.0.1:10809',
     'https': '127.0.0.1:10809'
 }
-# proxies = None
+proxies = None
 
 Q = Query()
 db_url = TinyDB("db.json")
@@ -122,7 +122,7 @@ def get_video_meta(page_url=None, prev_url=None):
         fetch.download_large_file(prev_url, "video/" + page_url + ".jpg")
     except Exception as e:
         log.log_error(str(e))
-        raise e
+        # raise e
     table_video_url.update({"flag": 1, "video_url": video_url}, where("page_url") == page_url)
     return video_url
 
@@ -140,7 +140,6 @@ def get_pic_meta(page_url=None):
     imgs = data.select(".showMiniImage")
     img_pack = []  # 图包
     for img in imgs:
-        print(img)
         if not os.path.exists("photo/" + page_url):
             os.mkdir("photo/" + page_url)
         if 'data-src' in img.attrs:
@@ -150,10 +149,19 @@ def get_pic_meta(page_url=None):
             if len(img) == 1:
                 img = img[0]
             else:
-                # print(img)
                 continue
         prev_url = img.attrs['data-src']
-        photo_url = prev_url.replace("_t.", ".")
+        if 'dataurl' in img.attrs:
+            photo_url = img.attrs['dataurl'][5:]
+        elif 'dataUrl' in img.attrs:
+            photo_url = img.attrs['dataUrl'][5:]
+        else:
+            continue
+        # 下载VIP图片
+        if 'vipppimages' in photo_url:
+            photo_url = prev_url.replace("_t.", ".")
+            suffix = prev_url.split(".")[-1]
+            photo_url = photo_url.split(".")[0] + "." + suffix
         img_pack.append({
             "photo_url": photo_url,
             "prev_url": prev_url,
@@ -164,7 +172,7 @@ def get_pic_meta(page_url=None):
             fetch.download_file(domain + prev_url, "photo/" + page_url + "/" + prev_url.split("/")[-1])
         except Exception as e:
             log.log_error(str(e))
-            raise e
+            # raise e
 
     table_pic_url.update({"flag": 1, "img_pack": img_pack}, where("page_url") == page_url)
     return img_pack
